@@ -4,13 +4,24 @@ pragma solidity ^0.8.24;
 import {OApp, MessagingFee, MessagingReceipt, Origin} from "@layerzerolabs/lz-evm-oapp-v2/contracts/oapp/OApp.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
+import "./interfaces/IErrors.sol";
+import "./interfaces/ICrossChainIntent.sol";
+import "./interfaces/ICCIPReceiver.sol";
+import "./libraries/CrossChainMessageLib.sol";
 
 /**
  * @title IntentManager
- * @notice Core contract for managing user intents with LayerZero cross-chain messaging
- * @dev Extends OApp to add intent-anchored atomic settlement functionality
+ * @notice Core contract for managing user intents with LayerZero V2 and Chainlink CCIP cross-chain messaging
+ * @dev Extends OApp for LayerZero V2 and implements CCIPReceiver for Chainlink CCIP
  */
-contract IntentManager is OApp, ReentrancyGuard {
+contract IntentManager is OApp, ReentrancyGuard, AccessControl, ICCIPReceiver {
+    using CrossChainMessageLib for ICrossChainIntent.CrossChainMessage;
+    
+    // Role definitions
+    bytes32 public constant EXECUTOR_ROLE = keccak256("EXECUTOR_ROLE");
+    bytes32 public constant ORACLE_ROLE = keccak256("ORACLE_ROLE");
+    
     enum IntentStatus {
         Open,
         Bidding,
@@ -48,6 +59,21 @@ contract IntentManager is OApp, ReentrancyGuard {
         uint256 submittedAt;
     }
 
+    // Chainlink CCIP Router address
+    address public ccipRouter;
+    
+    // Chain selector mappings (CCIP uses uint64 chain selectors)
+    mapping(uint64 => bool) public supportedChainSelectors;
+    mapping(uint64 => address) public chainSelectorToLZEndpoint; // For LayerZero endpoint mapping
+    
+    // Cross-chain intent tracking
+    mapping(bytes32 => ICrossChainIntent.CrossChainIntentData) public crossChainIntents;
+    mapping(uint256 => bytes32[]) public intentToCrossChainIds; // Intent ID to cross-chain IDs
+    
+    // Executor and oracle validation
+    mapping(address => bool) public validExecutors;
+    mapping(address => bool) public validOracles;
+    
     // State variables
     mapping(uint256 => Intent) public intents;
     mapping(uint256 => AgentProposal[]) public intentProposals;
@@ -57,6 +83,9 @@ contract IntentManager is OApp, ReentrancyGuard {
     uint256 public nextIntentId;
     uint256 public constant MIN_DEADLINE = 1 hours;
     uint256 public constant MAX_DEADLINE = 30 days;
+    
+    // Current chain ID (set in constructor)
+    uint64 public immutable currentChainId;
 
     // Events
     event IntentCreated(
@@ -81,18 +110,45 @@ contract IntentManager is OApp, ReentrancyGuard {
     event CrossChainMessageSent(
         uint256 indexed intentId,
         uint32 dstEid,
-        bytes32 messageId
+        bytes32 messageId,
+        bytes32 crossChainId
     );
     event CrossChainMessageReceived(
         uint256 indexed intentId,
         uint32 srcEid,
-        bytes payload
+        bytes payload,
+        bytes32 crossChainId
     );
+    event IntentSentViaCCIP(
+        uint256 indexed intentId,
+        uint64 dstChainSelector,
+        bytes32 messageId,
+        bytes32 crossChainId
+    );
+    event IntentReceivedViaCCIP(
+        uint256 indexed intentId,
+        uint64 srcChainSelector,
+        bytes32 crossChainId
+    );
+    event ChainSelectorAdded(uint64 chainSelector);
+    event ChainSelectorRemoved(uint64 chainSelector);
+    event ExecutorAdded(address executor);
+    event ExecutorRemoved(address executor);
+    event OracleAdded(address oracle);
+    event OracleRemoved(address oracle);
 
     constructor(
         address _endpoint,
-        address _owner
-    ) OApp(_endpoint, _owner) Ownable(_owner) {}
+        address _ccipRouter,
+        address _owner,
+        uint64 _chainId
+    ) OApp(_endpoint, _owner) Ownable(_owner) {
+        ccipRouter = _ccipRouter;
+        currentChainId = _chainId;
+        _grantRole(DEFAULT_ADMIN_ROLE, _owner);
+        _grantRole(EXECUTOR_ROLE, _owner);
+        _grantRole(ORACLE_ROLE, _owner);
+    }
 
     /**
      * @notice Create a new intent
@@ -107,20 +163,22 @@ contract IntentManager is OApp, ReentrancyGuard {
         address _token,
         uint256 _amount
     ) external payable nonReentrant returns (uint256) {
-        require(
-            _deadline >= block.timestamp + MIN_DEADLINE,
-            "Deadline too soon"
-        );
-        require(
-            _deadline <= block.timestamp + MAX_DEADLINE,
-            "Deadline too far"
-        );
-        require(bytes(_intentSpec).length > 0, "Empty intent spec");
+        if (_deadline < block.timestamp + MIN_DEADLINE) {
+            revert IErrors.InvalidDeadline(_deadline);
+        }
+        if (_deadline > block.timestamp + MAX_DEADLINE) {
+            revert IErrors.InvalidDeadline(_deadline);
+        }
+        if (bytes(_intentSpec).length == 0) {
+            revert IErrors.EmptyIntentSpec();
+        }
 
         uint256 intentId = nextIntentId++;
         uint256 depositAmount = _token == address(0) ? msg.value : _amount;
 
-        require(depositAmount > 0, "Must deposit funds");
+        if (depositAmount == 0) {
+            revert IErrors.InsufficientDeposit();
+        }
 
         if (_token != address(0) && _amount > 0) {
             // Transfer ERC20 tokens (requires approval)
@@ -152,21 +210,20 @@ contract IntentManager is OApp, ReentrancyGuard {
      */
     function startBidding(uint256 _intentId) external {
         Intent storage intent = intents[_intentId];
-        require(intent.status == IntentStatus.Open, "Intent not open");
-        require(msg.sender == intent.user, "Not intent owner");
+        if (intent.intentId != _intentId) {
+            revert IErrors.IntentNotFound(_intentId);
+        }
+        if (intent.status != IntentStatus.Open) {
+            revert IErrors.IntentNotInBidding(_intentId);
+        }
+        if (msg.sender != intent.user) {
+            revert IErrors.NotIntentOwner(msg.sender);
+        }
         intent.status = IntentStatus.Bidding;
     }
 
     /**
      * @notice Submit agent proposal
-     * @param _intentId The intent ID
-     * @param _agentId The agent ID (from AgentRegistry)
-     * @param _strategy JSON strategy proposal
-     * @param _expectedCost Expected execution cost
-     * @param _expectedAPY Expected APY if applicable
-     * @param _timeline Execution timeline in seconds
-     * @param _signature Agent signature
-     * @param _proofCid Filecoin CID of agent proof
      */
     function submitProposal(
         uint256 _intentId,
@@ -179,11 +236,15 @@ contract IntentManager is OApp, ReentrancyGuard {
         bytes32 _proofCid
     ) external returns (uint256) {
         Intent storage intent = intents[_intentId];
-        require(
-            intent.status == IntentStatus.Bidding,
-            "Intent not in bidding"
-        );
-        require(block.timestamp < intent.deadline, "Deadline passed");
+        if (intent.intentId != _intentId) {
+            revert IErrors.IntentNotFound(_intentId);
+        }
+        if (intent.status != IntentStatus.Bidding) {
+            revert IErrors.IntentNotInBidding(_intentId);
+        }
+        if (block.timestamp >= intent.deadline) {
+            revert IErrors.IntentDeadlinePassed(_intentId);
+        }
 
         uint256 proposalId = intentProposalCount[_intentId]++;
         intentProposals[_intentId].push(
@@ -214,18 +275,23 @@ contract IntentManager is OApp, ReentrancyGuard {
         uint256 _proposalId
     ) external {
         Intent storage intent = intents[_intentId];
-        require(msg.sender == intent.user, "Not intent owner");
-        require(
-            intent.status == IntentStatus.Bidding,
-            "Intent not in bidding"
-        );
-        require(
-            _proposalId < intentProposals[_intentId].length,
-            "Invalid proposal"
-        );
+        if (intent.intentId != _intentId) {
+            revert IErrors.IntentNotFound(_intentId);
+        }
+        if (msg.sender != intent.user) {
+            revert IErrors.NotIntentOwner(msg.sender);
+        }
+        if (intent.status != IntentStatus.Bidding) {
+            revert IErrors.IntentNotInBidding(_intentId);
+        }
+        if (_proposalId >= intentProposals[_intentId].length) {
+            revert IErrors.InvalidProposal(_proposalId);
+        }
 
         AgentProposal storage proposal = intentProposals[_intentId][_proposalId];
-        require(!proposal.selected, "Proposal already selected");
+        if (proposal.selected) {
+            revert IErrors.ProposalAlreadySelected(_proposalId);
+        }
 
         intent.selectedAgentId = proposal.agentId;
         intent.status = IntentStatus.Executing;
@@ -236,95 +302,253 @@ contract IntentManager is OApp, ReentrancyGuard {
 
     /**
      * @notice Execute intent (can be called by agent or user after approval)
-     * @param _intentId The intent ID
-     * @param _executionPayload Execution data
      */
     function executeIntent(
         uint256 _intentId,
         bytes calldata _executionPayload
     ) external nonReentrant {
         Intent storage intent = intents[_intentId];
-        require(
-            intent.status == IntentStatus.Executing,
-            "Intent not executing"
-        );
-        require(block.timestamp < intent.deadline, "Deadline passed");
+        if (intent.intentId != _intentId) {
+            revert IErrors.IntentNotFound(_intentId);
+        }
+        if (intent.status != IntentStatus.Executing) {
+            revert IErrors.IntentNotExecuting(_intentId);
+        }
+        if (block.timestamp >= intent.deadline) {
+            revert IErrors.IntentDeadlinePassed(_intentId);
+        }
 
         intent.status = IntentStatus.Completed;
         intent.executedAt = block.timestamp;
-
-        // Release escrowed funds (simplified - would integrate with PaymentEscrow)
-        // Transfer logic here
 
         emit IntentExecuted(_intentId, _executionPayload);
     }
 
     /**
-     * @notice Send cross-chain message for intent execution
-     * @dev Extends OApp functionality with intent-anchored messaging
+     * @notice Send intent to another chain via LayerZero V2
+     * @param _intentId The intent ID
+     * @param _dstEid Destination endpoint ID
+     * @param _payload Execution payload
+     * @param _options LayerZero options (for gas limits, etc.)
      */
-    function sendCrossChainExecution(
+    function sendIntentToChain(
         uint256 _intentId,
         uint32 _dstEid,
         bytes calldata _payload,
         bytes calldata _options
     ) external payable returns (MessagingReceipt memory receipt) {
         Intent storage intent = intents[_intentId];
-        require(
-            intent.status == IntentStatus.Executing,
-            "Intent not executing"
+        if (intent.intentId != _intentId) {
+            revert IErrors.IntentNotFound(_intentId);
+        }
+        if (intent.status != IntentStatus.Executing) {
+            revert IErrors.IntentNotExecuting(_intentId);
+        }
+
+        // Generate cross-chain ID
+        uint64 dstChainId = _getChainIdFromEid(_dstEid);
+        bytes32 crossChainId = CrossChainMessageLib.generateCrossChainId(
+            _intentId,
+            currentChainId,
+            dstChainId
         );
 
-        // Build message with intent context
-        bytes memory message = abi.encode(_intentId, _payload);
+        // Build cross-chain message with domain separation
+        ICrossChainIntent.CrossChainMessage memory message = ICrossChainIntent.CrossChainMessage({
+            crossChainId: crossChainId,
+            intentId: _intentId,
+            srcChainId: currentChainId,
+            user: intent.user,
+            payload: _payload,
+            filecoinCid: intent.filecoinCid
+        });
 
-        MessagingFee memory fee = _quote(_dstEid, message, _options, false);
-        require(msg.value >= fee.nativeFee, "Insufficient fee");
+        bytes memory encodedMessage = CrossChainMessageLib.encodeMessage(message);
+
+        // Store cross-chain intent data
+        crossChainIntents[crossChainId] = ICrossChainIntent.CrossChainIntentData({
+            crossChainId: crossChainId,
+            intentId: _intentId,
+            srcChainId: currentChainId,
+            dstChainId: dstChainId,
+            user: intent.user,
+            filecoinCid: intent.filecoinCid,
+            amount: intent.amount,
+            token: intent.token,
+            deadline: intent.deadline,
+            selectedAgentId: intent.selectedAgentId,
+            executionPayload: _payload,
+            executed: false
+        });
+
+        intentToCrossChainIds[_intentId].push(crossChainId);
+
+        // Quote and send via LayerZero
+        MessagingFee memory fee = _quote(_dstEid, encodedMessage, _options, false);
+        if (msg.value < fee.nativeFee) {
+            revert IErrors.InsufficientFee(fee.nativeFee, msg.value);
+        }
 
         receipt = _lzSend(
             _dstEid,
-            message,
+            encodedMessage,
             _options,
             fee,
             payable(msg.sender)
         );
 
-        emit CrossChainMessageSent(_intentId, _dstEid, receipt.guid);
+        emit CrossChainMessageSent(_intentId, _dstEid, receipt.guid, crossChainId);
         return receipt;
     }
 
     /**
-     * @notice Handle received cross-chain message
-     * @dev Extends OApp _lzReceive with intent verification
+     * @notice Handle received LayerZero V2 message
+     * @dev Extends OApp _lzReceive with intent verification and executor validation
      */
     function _lzReceive(
         Origin calldata _origin,
         bytes32 /*_guid*/,
         bytes calldata _message,
-        address /*_executor*/,
+        address _executor,
         bytes calldata /*_extraData*/
     ) internal override {
-        (uint256 intentId, bytes memory payload) = abi.decode(
-            _message,
-            (uint256, bytes)
-        );
+        // Validate executor if executor validation is enabled
+        if (!hasRole(EXECUTOR_ROLE, _executor) && !validExecutors[_executor]) {
+            revert IErrors.InvalidExecutor(_executor);
+        }
 
-        // Verify intent exists and is in executing state
-        Intent storage intent = intents[intentId];
-        require(intent.intentId == intentId, "Intent not found");
-        require(
-            intent.status == IntentStatus.Executing,
-            "Intent not executing"
-        );
+        // Decode message with domain separation
+        ICrossChainIntent.CrossChainMessage memory message = CrossChainMessageLib.decodeMessage(_message);
+        
+        // Verify message integrity
+        if (!CrossChainMessageLib.verifyMessage(message)) {
+            revert("Invalid message");
+        }
+
+        // Verify cross-chain intent exists
+        bytes32 crossChainId = message.crossChainId;
+        ICrossChainIntent.CrossChainIntentData storage crossChainIntent = crossChainIntents[crossChainId];
+        
+        if (crossChainIntent.crossChainId == bytes32(0)) {
+            revert IErrors.CrossChainIntentNotFound(crossChainId);
+        }
 
         // Process cross-chain execution
         // This would integrate with ExecutionProxy for actual settlement
-
-        emit CrossChainMessageReceived(intentId, _origin.srcEid, payload);
+        
+        emit CrossChainMessageReceived(
+            message.intentId,
+            _origin.srcEid,
+            message.payload,
+            crossChainId
+        );
     }
 
     /**
-     * @notice Quote messaging fee
+     * @notice Send intent via Chainlink CCIP
+     * @param _intentId The intent ID
+     * @param _dstChainSelector Destination chain selector
+     * @param _payload Execution payload
+     */
+    function sendViaCCIP(
+        uint256 _intentId,
+        uint64 _dstChainSelector,
+        bytes calldata _payload
+    ) external payable returns (bytes32 messageId) {
+        if (!supportedChainSelectors[_dstChainSelector]) {
+            revert IErrors.InvalidChainSelector(_dstChainSelector);
+        }
+
+        Intent storage intent = intents[_intentId];
+        if (intent.intentId != _intentId) {
+            revert IErrors.IntentNotFound(_intentId);
+        }
+        if (intent.status != IntentStatus.Executing) {
+            revert IErrors.IntentNotExecuting(_intentId);
+        }
+
+        // Generate cross-chain ID
+        bytes32 crossChainId = CrossChainMessageLib.generateCrossChainId(
+            _intentId,
+            currentChainId,
+            _dstChainSelector
+        );
+
+        // Build CCIP message
+        ICrossChainIntent.CrossChainMessage memory message = ICrossChainIntent.CrossChainMessage({
+            crossChainId: crossChainId,
+            intentId: _intentId,
+            srcChainId: currentChainId,
+            user: intent.user,
+            payload: _payload,
+            filecoinCid: intent.filecoinCid
+        });
+
+        bytes memory encodedMessage = CrossChainMessageLib.encodeMessage(message);
+
+        // Store cross-chain intent data
+        crossChainIntents[crossChainId] = ICrossChainIntent.CrossChainIntentData({
+            crossChainId: crossChainId,
+            intentId: _intentId,
+            srcChainId: currentChainId,
+            dstChainId: _dstChainSelector,
+            user: intent.user,
+            filecoinCid: intent.filecoinCid,
+            amount: intent.amount,
+            token: intent.token,
+            deadline: intent.deadline,
+            selectedAgentId: intent.selectedAgentId,
+            executionPayload: _payload,
+            executed: false
+        });
+
+        intentToCrossChainIds[_intentId].push(crossChainId);
+
+        // In production, this would call CCIP Router's ccipSend
+        // For now, we emit an event
+        messageId = keccak256(abi.encodePacked(_intentId, _dstChainSelector, block.timestamp));
+        
+        emit IntentSentViaCCIP(_intentId, _dstChainSelector, messageId, crossChainId);
+    }
+
+    /**
+     * @notice Handle received CCIP message
+     * @dev Implements ICCIPReceiver interface
+     */
+    function ccipReceive(
+        ICCIPReceiver.Any2EVMMessage calldata _message
+    ) external {
+        // Verify sender is CCIP Router
+        require(msg.sender == ccipRouter, "Invalid sender");
+        
+        // Verify chain selector is supported
+        if (!supportedChainSelectors[_message.sourceChainSelector]) {
+            revert IErrors.InvalidChainSelector(_message.sourceChainSelector);
+        }
+
+        // Decode message
+        ICrossChainIntent.CrossChainMessage memory message = CrossChainMessageLib.decodeMessage(_message.data);
+        
+        // Verify message integrity
+        if (!CrossChainMessageLib.verifyMessage(message)) {
+            revert("Invalid message");
+        }
+
+        // Verify sender address matches expected
+        address sender = abi.decode(_message.sender, (address));
+        // In production, verify sender is the IntentManager on source chain
+
+        bytes32 crossChainId = message.crossChainId;
+        
+        emit IntentReceivedViaCCIP(
+            message.intentId,
+            _message.sourceChainSelector,
+            crossChainId
+        );
+    }
+
+    /**
+     * @notice Quote LayerZero messaging fee
      */
     function quoteCrossChainFee(
         uint32 _dstEid,
@@ -333,6 +557,60 @@ contract IntentManager is OApp, ReentrancyGuard {
         bool _payInLzToken
     ) external view returns (MessagingFee memory fee) {
         return _quote(_dstEid, _message, _options, _payInLzToken);
+    }
+
+    // Admin functions
+
+    /**
+     * @notice Add supported chain selector (CCIP)
+     */
+    function addChainSelector(uint64 _chainSelector) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        supportedChainSelectors[_chainSelector] = true;
+        emit ChainSelectorAdded(_chainSelector);
+    }
+
+    /**
+     * @notice Remove supported chain selector
+     */
+    function removeChainSelector(uint64 _chainSelector) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        supportedChainSelectors[_chainSelector] = false;
+        emit ChainSelectorRemoved(_chainSelector);
+    }
+
+    /**
+     * @notice Add executor address
+     */
+    function addExecutor(address _executor) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        validExecutors[_executor] = true;
+        _grantRole(EXECUTOR_ROLE, _executor);
+        emit ExecutorAdded(_executor);
+    }
+
+    /**
+     * @notice Remove executor address
+     */
+    function removeExecutor(address _executor) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        validExecutors[_executor] = false;
+        _revokeRole(EXECUTOR_ROLE, _executor);
+        emit ExecutorRemoved(_executor);
+    }
+
+    /**
+     * @notice Add oracle address
+     */
+    function addOracle(address _oracle) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        validOracles[_oracle] = true;
+        _grantRole(ORACLE_ROLE, _oracle);
+        emit OracleAdded(_oracle);
+    }
+
+    /**
+     * @notice Remove oracle address
+     */
+    function removeOracle(address _oracle) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        validOracles[_oracle] = false;
+        _revokeRole(ORACLE_ROLE, _oracle);
+        emit OracleRemoved(_oracle);
     }
 
     // View functions
@@ -351,5 +629,24 @@ contract IntentManager is OApp, ReentrancyGuard {
     ) external view returns (uint256[] memory) {
         return userIntents[_user];
     }
-}
 
+    function getCrossChainIntent(
+        bytes32 _crossChainId
+    ) external view returns (ICrossChainIntent.CrossChainIntentData memory) {
+        return crossChainIntents[_crossChainId];
+    }
+
+    function getIntentCrossChainIds(
+        uint256 _intentId
+    ) external view returns (bytes32[] memory) {
+        return intentToCrossChainIds[_intentId];
+    }
+
+    // Internal helper functions
+    function _getChainIdFromEid(uint32 _eid) internal pure returns (uint64) {
+        // Mapping from LayerZero endpoint ID to chain ID
+        // This would be populated based on LayerZero's endpoint registry
+        // For now, return a placeholder
+        return uint64(_eid);
+    }
+}
