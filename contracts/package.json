@@ -23,19 +23,19 @@
   "author": "",
   "license": "MIT",
   "devDependencies": {
-    "@nomicfoundation/hardhat-chai-matchers": "^2.1.0",
-    "@nomicfoundation/hardhat-ethers": "^4.0.3",
     "@nomicfoundation/hardhat-network-helpers": "^1.0.6",
     "@typechain/ethers-v6": "^0.5.1",
-    "@typechain/hardhat": "^9.1.0",
+    "@typechain/hardhat": "^9.0.0",
     "@types/chai": "^4.3.5",
     "@types/mocha": "^10.0.1",
     "chai": "^4.3.7",
-    "hardhat": "^3.0.0",
+    "hardhat": "^3.0.15",
     "mocha": "^10.2.0",
     "ts-node": "^10.9.1",
+    "tsx": "^4.20.6",
     "typechain": "^8.3.2",
-    "typescript": "^5.1.3"
+    "typescript": "^5.1.3",
+    "zod": "^3.25.76"
   },
   "dependencies": {
     "@chainlink/contracts": "^1.1.1",
@@ -44,5 +44,8 @@
     "@openzeppelin/contracts": "^5.0.2",
     "dotenv": "^16.3.1",
     "ethers": "^6.8.0"
+  },
+  "overrides": {
+    "zod": "^3.25.76"
   }
 }

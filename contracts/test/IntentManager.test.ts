@@ -1,12 +1,11 @@
 import { expect } from 'chai';
-import { ethers } from 'ethers';
+import hre from 'hardhat';
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers';
 import { deployIntentManagerFixture } from './fixtures';
-import { HardhatEthersSigner } from '@nomicfoundation/hardhat-ethers/signers';
 
 describe('IntentManager', function () {
-  let owner: HardhatEthersSigner;
-  let user: HardhatEthersSigner;
+  let owner: any;
+  let user: any;
   let intentManager: any;
 
   beforeEach(async function () {
@@ -19,15 +18,15 @@ describe('IntentManager', function () {
   describe('Intent Creation', function () {
     it('Should create a new intent', async function () {
       const intentSpec = 'Get 5% yield on stablecoins';
-      const filecoinCid = ethers.id('test-cid');
+      const filecoinCid = hre.ethers.id('test-cid');
       const deadline = Math.floor(Date.now() / 1000) + 86400; // 1 day
 
       const tx = await intentManager.createIntent(
         intentSpec,
         filecoinCid,
         deadline,
-        ethers.ZeroAddress, // Native token
-        { value: ethers.parseEther('1.0') }
+        hre.ethers.ZeroAddress, // Native token
+        { value: hre.ethers.parseEther('1.0') }
       );
 
       const receipt = await tx.wait();
@@ -40,7 +39,7 @@ describe('IntentManager', function () {
 
     it('Should reject intent with invalid deadline', async function () {
       const intentSpec = 'Test intent';
-      const filecoinCid = ethers.id('test-cid');
+      const filecoinCid = hre.ethers.id('test-cid');
       const deadline = Math.floor(Date.now() / 1000) + 3600; // Too soon
 
       await expect(
@@ -48,8 +47,8 @@ describe('IntentManager', function () {
           intentSpec,
           filecoinCid,
           deadline,
-          ethers.ZeroAddress,
-          { value: ethers.parseEther('1.0') }
+          hre.ethers.ZeroAddress,
+          { value: hre.ethers.parseEther('1.0') }
         )
       ).to.be.revertedWith('Deadline too soon');
     });
@@ -59,15 +58,15 @@ describe('IntentManager', function () {
     it('Should allow agent to submit proposal', async function () {
       // First create intent
       const intentSpec = 'Test intent';
-      const filecoinCid = ethers.id('test-cid');
+      const filecoinCid = hre.ethers.id('test-cid');
       const deadline = Math.floor(Date.now() / 1000) + 86400;
 
       const createTx = await intentManager.createIntent(
         intentSpec,
         filecoinCid,
         deadline,
-        ethers.ZeroAddress,
-        { value: ethers.parseEther('1.0') }
+        hre.ethers.ZeroAddress,
+        { value: hre.ethers.parseEther('1.0') }
       );
 
       const createReceipt = await createTx.wait();
@@ -84,11 +83,11 @@ describe('IntentManager', function () {
         intentId,
         1, // agentId
         'Test strategy',
-        ethers.parseEther('0.01'),
+        hre.ethers.parseEther('0.01'),
         5, // expectedAPY
         86400, // timeline
         '0x', // signature
-        ethers.id('proof-cid')
+        hre.ethers.id('proof-cid')
       );
 
       const proposalReceipt = await proposalTx.wait();
@@ -104,15 +103,15 @@ describe('IntentManager', function () {
     it('Should allow user to select agent', async function () {
       // Create intent
       const intentSpec = 'Test intent';
-      const filecoinCid = ethers.id('test-cid');
+      const filecoinCid = hre.ethers.id('test-cid');
       const deadline = Math.floor(Date.now() / 1000) + 86400;
 
       const createTx = await intentManager.createIntent(
         intentSpec,
         filecoinCid,
         deadline,
-        ethers.ZeroAddress,
-        { value: ethers.parseEther('1.0') }
+        hre.ethers.ZeroAddress,
+        { value: hre.ethers.parseEther('1.0') }
       );
 
       const createReceipt = await createTx.wait();
@@ -127,11 +126,11 @@ describe('IntentManager', function () {
         intentId,
         1,
         'Test strategy',
-        ethers.parseEther('0.01'),
+        hre.ethers.parseEther('0.01'),
         5,
         86400,
         '0x',
-        ethers.id('proof-cid')
+        hre.ethers.id('proof-cid')
       );
 
       const proposalReceipt = await proposalTx.wait();
@@ -151,4 +150,3 @@ describe('IntentManager', function () {
     });
   });
 });
-

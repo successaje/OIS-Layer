@@ -1,5 +1,5 @@
 import { expect } from 'chai';
-import { ethers } from 'ethers';
+import hre from 'hardhat';
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers';
 import { deployAgentRegistryFixture } from './fixtures';
 
@@ -21,7 +21,7 @@ describe('AgentRegistry', function () {
     it('Should allow agent to register with stake', async function () {
       const ensName = 'agent.eth';
       const specialization = 'yield-farming';
-      const stakeAmount = ethers.parseEther('10');
+      const stakeAmount = hre.ethers.parseEther('10');
 
       // Approve tokens
       await reputationToken.connect(agent).approve(await registry.getAddress(), stakeAmount);
@@ -36,7 +36,7 @@ describe('AgentRegistry', function () {
     });
 
     it('Should reject registration with insufficient stake', async function () {
-      const stakeAmount = ethers.parseEther('0.1'); // Below minimum
+      const stakeAmount = hre.ethers.parseEther('0.1'); // Below minimum
 
       await reputationToken.connect(agent).approve(await registry.getAddress(), stakeAmount);
 
@@ -49,7 +49,7 @@ describe('AgentRegistry', function () {
   describe('Slashing', function () {
     it('Should allow owner to slash agent', async function () {
       // First register agent
-      const stakeAmount = ethers.parseEther('10');
+      const stakeAmount = hre.ethers.parseEther('10');
       await reputationToken.connect(agent).approve(await registry.getAddress(), stakeAmount);
       await registry.connect(agent).registerAgent('agent.eth', 'specialization', stakeAmount);
       const agentId = 0;
@@ -63,4 +63,3 @@ describe('AgentRegistry', function () {
     });
   });
 });
-
