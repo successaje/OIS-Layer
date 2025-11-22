@@ -42,7 +42,7 @@ const CCIP_ROUTERS: { [key: string]: string } = {
   sepolia: "0x0BF3dE8c5D3e8A2B34D2BEeB17ABfCeBaf363A59",
   arbitrumSepolia: "0x2a9C5afB0d0e4BAb2AdaDA92493B3D313c4C3b0C",
   optimismSepolia: "0x114A20A10b43D4115e5aeef7345a1A9844850E4E",
-  baseSepolia: "0xD3b06cEbF099CE7A4fa6d5A8b5b8C5C5C5C5C5C5", // Update with actual address
+  baseSepolia: "0x80AF2F44ed0469018922c9F483dc5A909862fdc2", // Base Sepolia CCIP Router
   polygonMumbai: "0x1035CabC275068e0F4b745A29CEDf38E13aF41b1",
   fuji: "0xF694E193200268f9a4868e4Aa017A0118C9a8177",
 };

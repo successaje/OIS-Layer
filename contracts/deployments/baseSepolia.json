@@ -1,0 +1,19 @@
+{
+  "network": "baseSepolia",
+  "chainId": "84532",
+  "deployer": "0x60eF148485C2a5119fa52CA13c52E9fd98F28e87",
+  "contracts": {
+    "reputationToken": "0x5467EB13A408C48EB02811E92968F6e2A2556040",
+    "agentRegistry": "0x47f4917805C577a168d411b4531F2A49fBeF311e",
+    "paymentEscrow": "0x6eE71e2A4a3425B72e7337b7fcc7cd985B1c0892",
+    "intentManager": "0x767FadD3b8A3414c51Bc5D584C07Ea763Db015D7",
+    "executionProxy": "0xDc3E972df436D0c9F9dAc41066DFfCcC60913e8E",
+    "oracleAdapter": "0x603FD7639e33cAf15336E5BB52E06558122E4832"
+  },
+  "configuration": {
+    "layerZeroEndpoint": "0x6EDCE65403992e310A62460808c4b910D972f10f",
+    "ccipRouter": "0x80AF2F44ed0469018922c9F483dc5A909862fdc2",
+    "minStake": "1000000000000000000"
+  },
+  "timestamp": "2025-11-22T20:47:24.966Z"
+}

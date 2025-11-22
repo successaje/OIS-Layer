@@ -20,23 +20,12 @@ module.exports = {
     version: "0.8.24",
     settings: {
       optimizer: { enabled: true, runs: 200 },
-      viaIR: true, // Required for ExecutionProxy.sol (stack too deep)
+      viaIR: true,
     },
   },
 
   networks: {
-    hardhat: {
-      chainId: 31337,
-    },
-
-    localhost: {
-      url: "http://127.0.0.1:8545",
-      chainId: 31337,
-    },
-
-    // ------------------------
-    // TESTNETS
-    // ------------------------
+    hardhat: { chainId: 31337 },
 
     sepolia: {
       url: `https://sepolia.infura.io/v3/${INFURA_API_KEY}`,
@@ -50,28 +39,10 @@ module.exports = {
       chainId: 421614,
     },
 
-    optimismSepolia: {
-      url: `https://optimism-sepolia.infura.io/v3/${INFURA_API_KEY}`,
-      accounts: PRIVATE_KEY ? [PRIVATE_KEY] : [],
-      chainId: 11155420,
-    },
-
     baseSepolia: {
       url: `https://base-sepolia.g.alchemy.com/v2/${ALCHEMY_API_KEY}`,
       accounts: PRIVATE_KEY ? [PRIVATE_KEY] : [],
       chainId: 84532,
-    },
-
-    polygonMumbai: {
-      url: `https://polygon-mumbai.infura.io/v3/${INFURA_API_KEY}`,
-      accounts: PRIVATE_KEY ? [PRIVATE_KEY] : [],
-      chainId: 80001,
-    },
-
-    bscTestnet: {
-      url: "https://data-seed-prebsc-1-s1.binance.org:8545",
-      accounts: PRIVATE_KEY ? [PRIVATE_KEY] : [],
-      chainId: 97,
     },
 
     fuji: {
@@ -79,75 +50,23 @@ module.exports = {
       accounts: PRIVATE_KEY ? [PRIVATE_KEY] : [],
       chainId: 43113,
     },
-
-    // ------------------------
-    // MAINNETS
-    // ------------------------
-
-    ethereum: {
-      url: `https://mainnet.infura.io/v3/${INFURA_API_KEY}`,
-      accounts: PRIVATE_KEY ? [PRIVATE_KEY] : [],
-      chainId: 1,
-    },
-
-    arbitrum: {
-      url: `https://arbitrum-mainnet.infura.io/v3/${INFURA_API_KEY}`,
-      accounts: PRIVATE_KEY ? [PRIVATE_KEY] : [],
-      chainId: 42161,
-    },
-
-    optimism: {
-      url: `https://optimism-mainnet.infura.io/v3/${INFURA_API_KEY}`,
-      accounts: PRIVATE_KEY ? [PRIVATE_KEY] : [],
-      chainId: 10,
-    },
-
-    base: {
-      url: `https://base-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}`,
-      accounts: PRIVATE_KEY ? [PRIVATE_KEY] : [],
-      chainId: 8453,
-    },
-
-    polygon: {
-      url: `https://polygon-mainnet.infura.io/v3/${INFURA_API_KEY}`,
-      accounts: PRIVATE_KEY ? [PRIVATE_KEY] : [],
-      chainId: 137,
-    },
-
-    bsc: {
-      url: "https://bsc-dataseed.binance.org",
-      accounts: PRIVATE_KEY ? [PRIVATE_KEY] : [],
-      chainId: 56,
-    },
-
-    avalanche: {
-      url: `https://avalanche-mainnet.infura.io/v3/${INFURA_API_KEY}`,
-      accounts: PRIVATE_KEY ? [PRIVATE_KEY] : [],
-      chainId: 43114,
-    },
   },
 
-  // ------------------------
-  // ETHERSCAN API CONFIG
-  // ------------------------
-
   etherscan: {
-    apiKey: ETHERSCAN_API_KEY,
+    apiKey: {
+      sepolia: ETHERSCAN_API_KEY,
+      arbitrumSepolia: ARBISCAN_API_KEY,
+      baseSepolia: BASESCAN_API_KEY,
+      polygonMumbai: POLYGONSCAN_API_KEY,
+      fuji: SNOWTRACE_API_KEY,
+    },
 
     customChains: [
-      {
-        network: "fuji",
-        chainId: 43113,
-        urls: {
-          apiURL: "https://api-testnet.snowtrace.io/api",
-          browserURL: "https://testnet.snowtrace.io",
-        },
-      },
       {
         network: "arbitrumSepolia",
         chainId: 421614,
         urls: {
-          apiURL: "https://api-sepolia.arbiscan.io/api",
+          apiURL: "https://api-sepolia.arbiscan.io/api/v2",
           browserURL: "https://sepolia.arbiscan.io",
         },
       },
@@ -155,14 +74,18 @@ module.exports = {
         network: "baseSepolia",
         chainId: 84532,
         urls: {
-          apiURL: "https://api-sepolia.basescan.org/api",
+          apiURL: "https://api-sepolia.basescan.org/api/v2",
           browserURL: "https://sepolia.basescan.org",
         },
       },
+      {
+        network: "fuji",
+        chainId: 43113,
+        urls: {
+          apiURL: "https://api-testnet.snowtrace.io/api/v2",
+          browserURL: "https://testnet.snowtrace.io",
+        },
+      },
     ],
-  },
-
-  mocha: {
-    timeout: 40000,
   },
 };
