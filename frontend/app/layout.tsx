@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import { ThemeProvider } from "@/components/ThemeContext";
+import { Providers } from "./providers";
 import { Navigation } from "@/components/Navigation";
 import { Suspense } from "react";
 
@@ -30,12 +30,12 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <ThemeProvider>
+        <Providers>
           <Suspense fallback={<div className="h-16" />}>
             <Navigation />
           </Suspense>
           {children}
-        </ThemeProvider>
+        </Providers>
       </body>
     </html>
   );
