@@ -54,7 +54,7 @@ export default function AgentsPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-background text-foreground py-12">
+    <div className="min-h-screen bg-background text-foreground py-12 antialiased">
       <div className="container mx-auto px-4">
         <div className="mb-12">
           <h1 className="text-4xl font-bold mb-4">Agent Marketplace</h1>

@@ -48,7 +48,7 @@ export default function AuctionPage({ params }: { params: { id: string } }) {
   };
 
   return (
-    <div className="min-h-screen bg-background text-foreground py-12">
+    <div className="min-h-screen bg-background text-foreground py-12 antialiased">
       <div className="container mx-auto px-4 max-w-5xl">
         <div className="mb-8">
           <h1 className="text-4xl font-bold mb-4">Live Auction</h1>

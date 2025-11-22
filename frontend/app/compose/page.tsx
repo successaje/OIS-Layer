@@ -41,7 +41,7 @@ export default function ComposeIntentPage() {
   };
 
   return (
-    <div className="min-h-screen bg-background text-foreground py-12">
+    <div className="min-h-screen bg-background text-foreground py-12 antialiased">
       <div className="container mx-auto px-4 max-w-3xl">
         <motion.div
           initial={{ opacity: 0, y: 20 }}

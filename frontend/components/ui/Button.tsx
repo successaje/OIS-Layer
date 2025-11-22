@@ -19,9 +19,9 @@ export function Button({
   const baseClasses = 'font-medium rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2';
   
   const variantClasses = {
-    default: 'bg-primary text-primary-foreground hover:bg-primary/90 focus:ring-primary',
-    outline: 'border border-border bg-transparent hover:bg-accent hover:text-accent-foreground',
-    ghost: 'hover:bg-accent hover:text-accent-foreground',
+    default: 'bg-blue-600 text-white hover:bg-blue-700 focus:ring-blue-500',
+    outline: 'border-2 border-gray-300 dark:border-gray-600 bg-transparent hover:bg-gray-100 dark:hover:bg-gray-800',
+    ghost: 'hover:bg-gray-100 dark:hover:bg-gray-800',
   };
 
   const sizeClasses = {
