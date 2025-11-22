@@ -11,8 +11,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 export default function Home() {
   return (
     <div className="min-h-screen bg-[var(--bg)] text-[var(--text)] antialiased relative overflow-hidden">
-      <ParticleBackground />
-      <NeuralMeshBackground />
+      <div className="absolute inset-0 -z-10">
+        <ParticleBackground />
+        <NeuralMeshBackground />
+      </div>
 
       {/* Hero Section */}
       <section className="relative z-10 container mx-auto px-4 py-20">
