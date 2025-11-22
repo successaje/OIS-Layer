@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, CheckCircle2, AlertTriangle, Zap } from 'lucide-react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { IntentInputBox } from '@/components/IntentInputBox';
 import { AgentCard } from '@/components/AgentCard';
 import { GlowingButton } from '@/components/GlowingButton';

@@ -4,8 +4,10 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { LayoutDashboard, FileText, Users, Settings, Sparkles } from 'lucide-react';
+import Image from 'next/image';
 import { WalletConnectButton } from './WalletConnectButton';
 import { ThemeToggle } from './ThemeToggle';
+import { useTheme } from './ThemeContext';
 
 const navItems = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -21,8 +23,15 @@ export function Navigation() {
     <nav className="border-b-2 border-gray-200 dark:border-gray-700 bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm sticky top-0 z-50">
       <div className="container mx-auto px-4">
         <div className="flex items-center justify-between h-16">
-          <Link href="/" className="text-2xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
-            OISL
+          <Link href="/" className="flex items-center gap-2">
+            <span className="text-2xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
+              OISL
+            </span>
+            <div className="hidden lg:flex items-center gap-1.5 opacity-50">
+              <Image src="/logos/layerzero-network-seeklogo.png" alt="LayerZero" width={60} height={18} className="h-4 w-auto" />
+              <Image src="/logos/chainlink.png" alt="Chainlink" width={60} height={18} className="h-4 w-auto" />
+              <Image src="/logos/filecoin-fil-logo.png" alt="Filecoin" width={60} height={18} className="h-4 w-auto" />
+            </div>
           </Link>
           
           <div className="flex items-center gap-1">
