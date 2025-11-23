@@ -36,7 +36,7 @@ export default function IntentComposerPage() {
   const [filecoinCid, setFilecoinCid] = useState<string | null>(null);
 
   const chainId = useChainId();
-  const { createIntent, isCreating, isWaiting, isCreateSuccess, createError, transactionHash } = useIntent();
+  const { createIntent, isCreating, isWaiting, isCreateSuccess, createError, transactionHash, receipt } = useIntent();
 
   // Handle intent parsing with Llama
   const handleSubmit = async (input: string) => {
@@ -88,13 +88,24 @@ export default function IntentComposerPage() {
 
       // After showing competition, redirect to auction page
       setTimeout(() => {
-        // Extract intent ID from transaction (would need to parse events)
-        // For now, use a mock ID
-        const intentId = '1'; // In real app, extract from transaction receipt
-        router.push(`/intent/${intentId}/agents`);
+        // Extract intent ID from transaction receipt
+        // Try to parse IntentCreated event from receipt
+        let intentId = '1'; // Default fallback
+        
+        if (receipt?.logs) {
+          // Look for IntentCreated event (topic[0] = keccak256("IntentCreated(uint256,address,string,uint256,bytes32)"))
+          // In production, decode the event properly
+          // For now, use a placeholder - the actual intent ID would be in the event data
+          console.log('Transaction receipt:', receipt);
+          console.log('Transaction hash:', transactionHash);
+        }
+        
+        // Pass transaction hash via URL params (encode it properly)
+        const encodedHash = encodeURIComponent(transactionHash || '');
+        router.push(`/intent/${intentId}/agents?txHash=${encodedHash}`);
       }, 8000);
     }
-  }, [isCreateSuccess, transactionHash, router]);
+  }, [isCreateSuccess, transactionHash, receipt, router]);
 
   const agents = [
     { id: '1', ensName: 'yield-master.solver.eth', reputation: 1250, stake: '10.5', specialization: 'Yield Optimization', completedIntents: 45, avgRating: 4.8, successRate: 98, tags: ['best-apy', 'fastest'], apy: 7.2, rank: 1 },
@@ -447,15 +458,18 @@ export default function IntentComposerPage() {
                         <p className="text-sm font-medium text-green-600 dark:text-green-400 mb-1">
                           Intent created successfully!
                         </p>
-                        <p className="text-xs text-gray-600 dark:text-gray-400 font-mono">
-                          {formatTxHash(transactionHash)}
+                        <p className="text-xs text-gray-600 dark:text-gray-400 font-mono break-all">
+                          {transactionHash}
+                        </p>
+                        <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">
+                          (Formatted: {formatTxHash(transactionHash)})
                         </p>
                       </div>
                       <a
                         href={getExplorerUrl(chainId, transactionHash)}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="p-2 rounded-lg bg-green-100 dark:bg-green-900/30 hover:bg-green-200 dark:hover:bg-green-900/50 transition-colors"
+                        className="p-2 rounded-lg bg-green-100 dark:bg-green-900/30 hover:bg-green-200 dark:hover:bg-green-900/50 transition-colors flex-shrink-0 ml-2"
                       >
                         <ExternalLink className="h-4 w-4 text-green-600 dark:text-green-400" />
                       </a>

@@ -138,6 +138,7 @@ export function useIntent() {
     mutation: {
       onSuccess: (hash) => {
         // Transaction submitted successfully
+        console.log("[useIntent] Transaction hash from writeContract:", hash);
       },
       onError: (error) => {
         console.error("Intent creation error:", error);
@@ -227,13 +228,16 @@ export function useIntent() {
         // Note: createIntent signature: (string, bytes32, uint256, address, uint256)
         // For native ETH: amountParam = 0, value = ETH amount in wei
         // For ERC20: amountParam = token amount, value = 0
-        await createIntentWriteAsync({
+        const txHash = await createIntentWriteAsync({
           address: contractAddress!,
           abi: INTENT_MANAGER_ABI,
           functionName: "createIntent",
           args: [params.intentSpec, filecoinCid, BigInt(deadline), token, amountParam],
           value: value, // For native ETH deposits (msg.value)
         });
+        
+        console.log("[useIntent] Transaction hash returned from writeContractAsync:", txHash);
+        return txHash;
   };
 
   /**

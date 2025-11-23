@@ -2,19 +2,34 @@
 
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useParams } from 'next/navigation';
-import { Trophy, Zap, Clock } from 'lucide-react';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
+import { Trophy, Zap, Clock, CheckCircle2, ExternalLink } from 'lucide-react';
 import { AgentRaceCard } from '@/components/AgentRaceCard';
 import { LoadingAgentsAnimation } from '@/components/LoadingAgentsAnimation';
 import { Card, CardContent } from '@/components/ui/card';
+import { GlowingButton } from '@/components/GlowingButton';
+import { ExecutionProgressModal } from '@/components/ExecutionProgressModal';
+import { getExplorerUrl } from '@/lib/utils';
 
 export default function AgentBattleRoomPage() {
   const params = useParams();
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const [agents, setAgents] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [winner, setWinner] = useState<string | null>(null);
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [showExecution, setShowExecution] = useState(false);
+  const [executionSteps, setExecutionSteps] = useState<any[]>([]);
+  const [intentTxHash, setIntentTxHash] = useState<string | null>(null);
 
   useEffect(() => {
+    // Get transaction hash from URL params (passed from intent creation)
+    const txHashFromUrl = searchParams.get('txHash');
+    if (txHashFromUrl) {
+      setIntentTxHash(txHashFromUrl);
+    }
+
     // Simulate agents competing
     setTimeout(() => {
       const mockAgents = [
@@ -28,7 +43,97 @@ export default function AgentBattleRoomPage() {
       setLoading(false);
       setWinner('1');
     }, 2000);
-  }, []);
+  }, [searchParams]);
+
+  const startExecution = () => {
+    const steps = [
+      {
+        id: 'escrow',
+        label: '⏳ Escrow Funding Locked',
+        description: 'PaymentEscrow.sol - Funds secured in escrow contract',
+        status: 'pending' as const,
+        chain: 'Sepolia',
+      },
+      {
+        id: 'crosschain',
+        label: '🔄 Cross-chain Message Sent',
+        description: 'LayerZero v2 / CCIP - Message routed to destination chain',
+        status: 'pending' as const,
+        chain: 'Base Sepolia',
+      },
+      {
+        id: 'execution',
+        label: '⚙️ Execution on Destination',
+        description: 'Agent executing intent on destination chain',
+        status: 'pending' as const,
+        chain: 'Base Sepolia',
+      },
+      {
+        id: 'oracle',
+        label: '📡 Oracle Verification',
+        description: 'CCIP / Chainlink OCR - Verifying execution completion',
+        status: 'pending' as const,
+      },
+      {
+        id: 'agent-verify',
+        label: '📥 Off-chain Agent Verification',
+        description: 'Agent verifying completion status',
+        status: 'pending' as const,
+      },
+      {
+        id: 'return',
+        label: '🔁 Return Message Received',
+        description: 'Message received back on source chain',
+        status: 'pending' as const,
+        chain: 'Sepolia',
+      },
+      {
+        id: 'release',
+        label: '🔓 Escrow Released',
+        description: 'Funds released to agent upon successful execution',
+        status: 'pending' as const,
+        chain: 'Sepolia',
+      },
+      {
+        id: 'filecoin',
+        label: '📦 Filecoin Finality Logging',
+        description: 'Complete execution result logged to Filecoin for permanent verification',
+        status: 'pending' as const,
+      },
+    ];
+
+    setExecutionSteps(steps);
+
+    // Simulate step progression
+    steps.forEach((step, index) => {
+      setTimeout(() => {
+        setExecutionSteps(prev => 
+          prev.map(s => 
+            s.id === step.id 
+              ? { ...s, status: 'in-progress' as const }
+              : s
+          )
+        );
+        
+        setTimeout(() => {
+          setExecutionSteps(prev => 
+            prev.map(s => 
+              s.id === step.id 
+                ? { ...s, status: 'completed' as const, txHash: '0x' + Array.from({ length: 64 }, () => Math.floor(Math.random() * 16).toString(16)).join('') }
+                : s
+            )
+          );
+          
+          // If last step, redirect to result page
+          if (index === steps.length - 1) {
+            setTimeout(() => {
+              router.push(`/intent/${params.id}/result`);
+            }, 2000);
+          }
+        }, 2000);
+      }, index * 3000);
+    });
+  };
 
   return (
     <div className="min-h-screen bg-[var(--bg)] text-[var(--text)] antialiased">
@@ -51,7 +156,7 @@ export default function AgentBattleRoomPage() {
         ) : (
           <>
             {/* Winner Announcement */}
-            {winner && (
+            {winner && !showConfirm && (
               <motion.div
                 initial={{ scale: 0, rotate: -180 }}
                 animate={{ scale: 1, rotate: 0 }}
@@ -63,9 +168,77 @@ export default function AgentBattleRoomPage() {
                     <h2 className="text-2xl font-bold text-green-600 dark:text-green-400 mb-2">
                       Winner Selected!
                     </h2>
-                    <p className="text-gray-700 dark:text-gray-300">
+                    <p className="text-gray-700 dark:text-gray-300 mb-4">
                       {agents.find(a => a.id === winner)?.ensName} has the best proposal
                     </p>
+                    {intentTxHash && (
+                      <a
+                        href={getExplorerUrl(11155111, intentTxHash)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-2 text-sm text-indigo-600 dark:text-indigo-400 hover:underline mb-4"
+                      >
+                        View Intent on Explorer
+                        <ExternalLink className="h-4 w-4" />
+                      </a>
+                    )}
+                    <GlowingButton onClick={() => setShowConfirm(true)}>
+                      Confirm Execution
+                    </GlowingButton>
+                  </CardContent>
+                </Card>
+              </motion.div>
+            )}
+
+            {/* Confirm Execution */}
+            {showConfirm && !showExecution && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="mb-8"
+              >
+                <Card className="border-2 border-indigo-500 bg-indigo-50 dark:bg-indigo-900/20">
+                  <CardContent className="p-6">
+                    <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-4">
+                      Confirm Execution
+                    </h3>
+                    <div className="space-y-3 mb-6">
+                      <div className="flex justify-between">
+                        <span className="text-gray-600 dark:text-gray-400">Winner Agent:</span>
+                        <span className="font-semibold text-gray-900 dark:text-gray-100">
+                          {agents.find(a => a.id === winner)?.ensName}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600 dark:text-gray-400">Expected APY:</span>
+                        <span className="font-semibold text-green-600 dark:text-green-400">
+                          {agents.find(a => a.id === winner)?.apy}%
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600 dark:text-gray-400">Strategy:</span>
+                        <span className="font-semibold text-gray-900 dark:text-gray-100">
+                          {agents.find(a => a.id === winner)?.proposal}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="flex gap-4">
+                      <GlowingButton
+                        onClick={() => {
+                          setShowExecution(true);
+                          startExecution();
+                        }}
+                        className="flex-1"
+                      >
+                        Start Execution
+                      </GlowingButton>
+                      <button
+                        onClick={() => setShowConfirm(false)}
+                        className="px-6 py-3 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
+                      >
+                        Cancel
+                      </button>
+                    </div>
                   </CardContent>
                 </Card>
               </motion.div>
@@ -132,6 +305,13 @@ export default function AgentBattleRoomPage() {
           </>
         )}
       </div>
+
+      {/* Execution Progress Modal */}
+      <ExecutionProgressModal
+        isOpen={showExecution}
+        steps={executionSteps}
+        onClose={() => setShowExecution(false)}
+      />
     </div>
   );
 }
