@@ -1,13 +1,27 @@
 'use client';
 
 import { motion } from 'framer-motion';
+import { useEffect, useState } from 'react';
 
 export function NeuralMeshBackground() {
-  const nodes = Array.from({ length: 20 }, (_, i) => ({
-    id: i,
-    x: Math.random() * 100,
-    y: Math.random() * 100,
-  }));
+  // Use useState to ensure consistent values between server and client
+  const [nodes, setNodes] = useState<Array<{ id: number; x: number; y: number }>>([]);
+
+  useEffect(() => {
+    // Generate nodes only on client side to avoid hydration mismatch
+    setNodes(
+      Array.from({ length: 20 }, (_, i) => ({
+        id: i,
+        x: Math.random() * 100,
+        y: Math.random() * 100,
+      }))
+    );
+  }, []);
+
+  // Don't render until nodes are generated (client-side only)
+  if (nodes.length === 0) {
+    return <div className="fixed inset-0 -z-10 overflow-hidden" />;
+  }
 
   return (
     <div className="fixed inset-0 -z-10 overflow-hidden">

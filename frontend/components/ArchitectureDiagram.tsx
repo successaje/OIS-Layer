@@ -151,43 +151,43 @@ export function ArchitectureDiagram() {
           
           <marker
             id="arrowhead-primary"
-            markerWidth="10"
-            markerHeight="10"
-            refX="9"
-            refY="3"
+            markerWidth="6"
+            markerHeight="6"
+            refX="5"
+            refY="2"
             orient="auto"
           >
-            <polygon points="0 0, 10 3, 0 6" fill="#6366f1" />
+            <polygon points="0 0, 6 2, 0 4" fill="#6366f1" />
           </marker>
           <marker
             id="arrowhead-oracle"
-            markerWidth="10"
-            markerHeight="10"
-            refX="9"
-            refY="3"
+            markerWidth="6"
+            markerHeight="6"
+            refX="5"
+            refY="2"
             orient="auto"
           >
-            <polygon points="0 0, 10 3, 0 6" fill="#f97316" />
+            <polygon points="0 0, 6 2, 0 4" fill="#f97316" />
           </marker>
           <marker
             id="arrowhead-storage"
-            markerWidth="10"
-            markerHeight="10"
-            refX="9"
-            refY="3"
+            markerWidth="6"
+            markerHeight="6"
+            refX="5"
+            refY="2"
             orient="auto"
           >
-            <polygon points="0 0, 10 3, 0 6" fill="#eab308" />
+            <polygon points="0 0, 6 2, 0 4" fill="#eab308" />
           </marker>
           <marker
             id="arrowhead-crosschain"
-            markerWidth="10"
-            markerHeight="10"
-            refX="9"
-            refY="3"
+            markerWidth="6"
+            markerHeight="6"
+            refX="5"
+            refY="2"
             orient="auto"
           >
-            <polygon points="0 0, 10 3, 0 6" fill="#6366f1" />
+            <polygon points="0 0, 6 2, 0 4" fill="#6366f1" />
           </marker>
         </defs>
 
@@ -201,7 +201,7 @@ export function ArchitectureDiagram() {
             let gradientId = 'connection-gradient-primary';
             let beamGradientId = 'beam-gradient-primary';
             let markerId = 'arrowhead-primary';
-            let strokeWidth = 3.5;
+            let strokeWidth = 1.5;
             
             if (node.id === 'chainlink' || target.id === 'chainlink') {
               gradientId = 'connection-gradient-oracle';
@@ -215,7 +215,7 @@ export function ArchitectureDiagram() {
               gradientId = 'connection-gradient-crosschain';
               beamGradientId = 'beam-gradient-crosschain';
               markerId = 'arrowhead-crosschain';
-              strokeWidth = 4.5;
+              strokeWidth = 2;
             }
             
             const pathId = `path-${node.id}-${targetId}`;
@@ -238,17 +238,17 @@ export function ArchitectureDiagram() {
                     opacity: { duration: 1, delay: 0.5 },
                   }}
                   style={{ 
-                    filter: 'drop-shadow(0 0 8px rgba(99, 102, 241, 0.8))',
+                    filter: 'drop-shadow(0 0 4px rgba(99, 102, 241, 0.6))',
                     strokeLinecap: 'round'
                   }}
                 />
                 
                 {/* Animated beam/particle traveling along the path - forward */}
                 <circle
-                  r="6"
+                  r="3"
                   fill={`url(#${beamGradientId})`}
                   opacity={1}
-                  style={{ filter: 'drop-shadow(0 0 10px currentColor)' }}
+                  style={{ filter: 'drop-shadow(0 0 6px currentColor)' }}
                 >
                   <animateMotion
                     dur="2.5s"
@@ -261,10 +261,10 @@ export function ArchitectureDiagram() {
                 
                 {/* Second beam - reverse direction */}
                 <circle
-                  r="5"
+                  r="2.5"
                   fill={`url(#${beamGradientId})`}
                   opacity={0.9}
-                  style={{ filter: 'drop-shadow(0 0 8px currentColor)' }}
+                  style={{ filter: 'drop-shadow(0 0 5px currentColor)' }}
                 >
                   <animateMotion
                     dur="3s"
@@ -280,9 +280,9 @@ export function ArchitectureDiagram() {
                 
                 {/* Glowing trail effect - forward */}
                 <circle
-                  r="10"
+                  r="5"
                   fill={`url(#${beamGradientId})`}
-                  opacity={0.5}
+                  opacity={0.4}
                 >
                   <animateMotion
                     dur="2.5s"
@@ -297,9 +297,9 @@ export function ArchitectureDiagram() {
                 {[0, 1, 2].map((i) => (
                   <circle
                     key={i}
-                    r="3"
+                    r="1.5"
                     fill={`url(#${beamGradientId})`}
-                    opacity={0.7}
+                    opacity={0.6}
                   >
                     <animateMotion
                       dur={`${2.5 + i * 0.5}s`}

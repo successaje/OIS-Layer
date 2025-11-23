@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Test Intent Creation</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      max-width: 800px;
+      margin: 40px auto;
+      padding: 20px;
+      background: #f5f5f5;
+    }
+    .test-section {
+      background: white;
+      padding: 20px;
+      margin: 20px 0;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    button {
+      background: #6366f1;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 6px;
+      cursor: pointer;
+      margin: 5px;
+    }
+    button:hover {
+      background: #4f46e5;
+    }
+    .error {
+      color: #dc2626;
+      background: #fee2e2;
+      padding: 10px;
+      border-radius: 4px;
+      margin: 10px 0;
+    }
+    .success {
+      color: #16a34a;
+      background: #dcfce7;
+      padding: 10px;
+      border-radius: 4px;
+      margin: 10px 0;
+    }
+    pre {
+      background: #f3f4f6;
+      padding: 10px;
+      border-radius: 4px;
+      overflow-x: auto;
+    }
+  </style>
+</head>
+<body>
+  <h1>🧪 Intent Creation Test Tool</h1>
+  
+  <div class="test-section">
+    <h2>1. Check Wallet Connection</h2>
+    <button onclick="checkWallet()">Check Wallet</button>
+    <div id="wallet-status"></div>
+  </div>
+
+  <div class="test-section">
+    <h2>2. Check Network</h2>
+    <button onclick="checkNetwork()">Check Network</button>
+    <div id="network-status"></div>
+  </div>
+
+  <div class="test-section">
+    <h2>3. Check Contract Addresses</h2>
+    <button onclick="checkContracts()">Check Contracts</button>
+    <div id="contract-status"></div>
+  </div>
+
+  <div class="test-section">
+    <h2>4. Test Simple Intent</h2>
+    <p>Use this simple intent format:</p>
+    <pre id="intent-format">Get best yield for 0.01 ETH</pre>
+    <button onclick="testSimpleIntent()">Test Intent Creation</button>
+    <div id="intent-status"></div>
+  </div>
+
+  <script>
+    const INTENT_MANAGER_ABI = [
+      {
+        name: "createIntent",
+        type: "function",
+        stateMutability: "payable",
+        inputs: [
+          { name: "_intentSpec", type: "string" },
+          { name: "_filecoinCid", type: "bytes32" },
+          { name: "_deadline", type: "uint256" },
+          { name: "_token", type: "address" },
+          { name: "_amount", type: "uint256" },
+        ],
+        outputs: [{ name: "", type: "uint256" }],
+      },
+    ];
+
+    const CONTRACT_ADDRESSES = {
+      11155111: "0xd0fC2c0271d8215EcB7Eeb0bdaFf8B1bef7c04A3", // Sepolia
+      84532: "0x767FadD3b8A3414c51Bc5D584C07Ea763Db015D7", // Base Sepolia
+    };
+
+    async function checkWallet() {
+      const statusDiv = document.getElementById('wallet-status');
+      try {
+        if (typeof window.ethereum === 'undefined') {
+          statusDiv.innerHTML = '<div class="error">MetaMask not detected. Please install MetaMask.</div>';
+          return;
+        }
+
+        const accounts = await window.ethereum.request({ method: 'eth_accounts' });
+        if (accounts.length === 0) {
+          statusDiv.innerHTML = '<div class="error">No wallet connected. Please connect your wallet.</div>';
+          return;
+        }
+
+        statusDiv.innerHTML = `<div class="success">✅ Wallet connected: ${accounts[0]}</div>`;
+      } catch (error) {
+        statusDiv.innerHTML = `<div class="error">Error: ${error.message}</div>`;
+      }
+    }
+
+    async function checkNetwork() {
+      const statusDiv = document.getElementById('network-status');
+      try {
+        if (typeof window.ethereum === 'undefined') {
+          statusDiv.innerHTML = '<div class="error">MetaMask not detected.</div>';
+          return;
+        }
+
+        const chainId = await window.ethereum.request({ method: 'eth_chainId' });
+        const chainIdNum = parseInt(chainId, 16);
+        
+        const networks = {
+          11155111: 'Sepolia',
+          84532: 'Base Sepolia',
+        };
+
+        if (chainIdNum in CONTRACT_ADDRESSES) {
+          statusDiv.innerHTML = `<div class="success">✅ Connected to ${networks[chainIdNum]} (Chain ID: ${chainIdNum})</div>`;
+        } else {
+          statusDiv.innerHTML = `<div class="error">❌ Unsupported network (Chain ID: ${chainIdNum}). Please switch to Sepolia or Base Sepolia.</div>`;
+        }
+      } catch (error) {
+        statusDiv.innerHTML = `<div class="error">Error: ${error.message}</div>`;
+      }
+    }
+
+    async function checkContracts() {
+      const statusDiv = document.getElementById('contract-status');
+      try {
+        if (typeof window.ethereum === 'undefined') {
+          statusDiv.innerHTML = '<div class="error">MetaMask not detected.</div>';
+          return;
+        }
+
+        const chainId = await window.ethereum.request({ method: 'eth_chainId' });
+        const chainIdNum = parseInt(chainId, 16);
+        
+        const address = CONTRACT_ADDRESSES[chainIdNum];
+        if (!address) {
+          statusDiv.innerHTML = '<div class="error">No contract address for this network.</div>';
+          return;
+        }
+
+        statusDiv.innerHTML = `<div class="success">
+          ✅ IntentManager Contract: <code>${address}</code>
+        </div>`;
+      } catch (error) {
+        statusDiv.innerHTML = `<div class="error">Error: ${error.message}</div>`;
+      }
+    }
+
+    async function testSimpleIntent() {
+      const statusDiv = document.getElementById('intent-status');
+      statusDiv.innerHTML = '<div>Testing...</div>';
+
+      try {
+        // Check prerequisites
+        if (typeof window.ethereum === 'undefined') {
+          throw new Error('MetaMask not detected');
+        }
+
+        const accounts = await window.ethereum.request({ method: 'eth_accounts' });
+        if (accounts.length === 0) {
+          throw new Error('Wallet not connected');
+        }
+
+        const chainId = await window.ethereum.request({ method: 'eth_chainId' });
+        const chainIdNum = parseInt(chainId, 16);
+        
+        if (!(chainIdNum in CONTRACT_ADDRESSES)) {
+          throw new Error(`Unsupported network. Please switch to Sepolia or Base Sepolia.`);
+        }
+
+        const contractAddress = CONTRACT_ADDRESSES[chainIdNum];
+
+        // Prepare parameters
+        const intentSpec = "Get best yield for 0.01 ETH";
+        const filecoinCid = "0x" + "0".repeat(64);
+        const deadline = BigInt(Math.floor(Date.now() / 1000) + 86400); // 24 hours
+        const token = "0x0000000000000000000000000000000000000000"; // Native ETH
+        const amount = 0n; // For native ETH
+        const value = "0x2386f26fc10000"; // 0.01 ETH in hex
+
+        statusDiv.innerHTML = `
+          <div>
+            <h3>Parameters:</h3>
+            <pre>Intent Spec: ${intentSpec}
+Filecoin CID: ${filecoinCid}
+Deadline: ${deadline.toString()}
+Token: ${token}
+Amount: ${amount.toString()}
+Value: 0.01 ETH</pre>
+            <p>Click "Confirm" in MetaMask to create the intent.</p>
+          </div>
+        `;
+
+        // Create transaction
+        const provider = new ethers.providers.Web3Provider(window.ethereum);
+        const signer = provider.getSigner();
+        const contract = new ethers.Contract(contractAddress, INTENT_MANAGER_ABI, signer);
+
+        const tx = await contract.createIntent(
+          intentSpec,
+          filecoinCid,
+          deadline,
+          token,
+          amount,
+          { value: value }
+        );
+
+        statusDiv.innerHTML = `
+          <div class="success">
+            ✅ Transaction sent!<br>
+            Hash: <code>${tx.hash}</code><br>
+            <a href="https://${chainIdNum === 11155111 ? 'sepolia.' : 'sepolia.'}etherscan.io/tx/${tx.hash}" target="_blank">View on Etherscan</a>
+          </div>
+        `;
+
+        // Wait for confirmation
+        const receipt = await tx.wait();
+        statusDiv.innerHTML += `
+          <div class="success">
+            ✅ Transaction confirmed!<br>
+            Block: ${receipt.blockNumber}
+          </div>
+        `;
+
+      } catch (error) {
+        statusDiv.innerHTML = `<div class="error">❌ Error: ${error.message}</div>`;
+        console.error('Error:', error);
+      }
+    }
+
+    // Load ethers.js if not available
+    if (typeof ethers === 'undefined') {
+      const script = document.createElement('script');
+      script.src = 'https://cdn.ethers.io/lib/ethers-5.7.2.umd.min.js';
+      script.onload = () => {
+        console.log('Ethers.js loaded');
+      };
+      document.head.appendChild(script);
+    }
+  </script>
+</body>
+</html>
+
