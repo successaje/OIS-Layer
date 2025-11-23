@@ -54,8 +54,10 @@ const nextConfig: NextConfig = {
 
     return config;
   },
-  // Add empty turbopack config to silence the warning
-  turbopack: {},
+  // Configure Turbopack root for workspace setup
+  turbopack: {
+    root: resolve(__dirname),
+  },
   // Server external packages (moved from experimental in Next.js 16)
   serverExternalPackages: ['pino', 'thread-stream'],
 };

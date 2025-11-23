@@ -68,8 +68,15 @@ tmp/
 temp/
 
 # Markdown documentation files (to be pushed later)
-*.md
-!README.md
+COMMIT_HISTORY.md
+BUILD_NOTES.md
+FEEDBACK_FOR_LAYERZERO.md
+IMPLEMENTATION_PRIORITY.md
+INTEGRATION_ROUTES.md
+DEMO_SCRIPT.md
+PROJECT_SUMMARY.md
+QUICK_START.md
+
 
 # Backend contract addresses
 backend/.contract-addresses.json
