@@ -4,6 +4,8 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useParams } from 'next/navigation';
 import { Button } from '@/components/ui/Button';
+import { FilecoinCidDisplay } from '@/components/FilecoinCidDisplay';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
 export default function AuctionPage() {
   const params = useParams();
@@ -11,6 +13,7 @@ export default function AuctionPage() {
   const [proposals, setProposals] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedProposal, setSelectedProposal] = useState<string | null>(null);
+  const [intentCid, setIntentCid] = useState<string | null>(null); // Would come from intent data
 
   useEffect(() => {
     if (!id) return;
@@ -57,9 +60,14 @@ export default function AuctionPage() {
       <div className="container mx-auto px-4 max-w-5xl">
         <div className="mb-8">
           <h1 className="text-4xl font-bold mb-4 text-gray-900 dark:text-gray-100">Live Auction</h1>
-          <p className="text-gray-600 dark:text-gray-400">
+          <p className="text-gray-600 dark:text-gray-400 mb-4">
             Agents are competing to execute your intent. Review proposals and select the winner.
           </p>
+          {intentCid && (
+            <div className="mb-4">
+              <FilecoinCidDisplay cid={intentCid} label="Intent Metadata" compact={true} />
+            </div>
+          )}
         </div>
 
         {loading ? (
@@ -132,15 +140,28 @@ export default function AuctionPage() {
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="mt-8 p-6 rounded-xl border-2 border-blue-600 dark:border-blue-400 bg-blue-50 dark:bg-blue-900/20"
+                className="mt-8 space-y-4"
               >
-                <h3 className="text-xl font-semibold mb-4 text-gray-900 dark:text-gray-100">Ready to Execute</h3>
-                <p className="text-gray-600 dark:text-gray-400 mb-4">
-                  Selected agent proposal includes signed strategy and Filecoin proof CID.
-                </p>
-                <Button size="lg" className="w-full">
-                  Execute Intent
-                </Button>
+                <Card className="border-2 border-blue-600 dark:border-blue-400 bg-blue-50 dark:bg-blue-900/20">
+                  <CardHeader>
+                    <CardTitle className="text-gray-900 dark:text-gray-100">Ready to Execute</CardTitle>
+                    <CardDescription>
+                      Selected agent proposal includes signed strategy and Filecoin proof CID.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {intentCid && (
+                      <FilecoinCidDisplay
+                        cid={intentCid}
+                        label="Intent Metadata on Filecoin"
+                        showVerify={true}
+                      />
+                    )}
+                    <Button size="lg" className="w-full">
+                      Execute Intent
+                    </Button>
+                  </CardContent>
+                </Card>
               </motion.div>
             )}
           </div>

@@ -19,6 +19,8 @@ import { useIntent, CreateIntentParams } from '@/src/hooks/useIntent';
 import { parseIntentWithLlama, type IntentParseResult } from '@/src/lib/ollama';
 import { getExplorerUrl, formatTxHash } from '@/lib/utils';
 import { useChainId } from 'wagmi';
+import { FilecoinUpload } from '@/components/FilecoinUpload';
+import { FilecoinCidDisplay } from '@/components/FilecoinCidDisplay';
 
 export default function IntentComposerPage() {
   const router = useRouter();
@@ -31,6 +33,7 @@ export default function IntentComposerPage() {
   const [competingAgents, setCompetingAgents] = useState<any[]>([]);
   const [amount, setAmount] = useState('0.01');
   const [deadline, setDeadline] = useState(24); // hours
+  const [filecoinCid, setFilecoinCid] = useState<string | null>(null);
 
   const chainId = useChainId();
   const { createIntent, isCreating, isWaiting, isCreateSuccess, createError, transactionHash } = useIntent();
@@ -115,6 +118,7 @@ export default function IntentComposerPage() {
         amount: amount,
         token: "0x0000000000000000000000000000000000000000", // Native ETH
         deadline: deadlineTimestamp,
+        filecoinCid: filecoinCid || undefined, // Include Filecoin CID if available
       };
 
       await createIntent(params);
@@ -280,6 +284,21 @@ export default function IntentComposerPage() {
             />
           )}
 
+          {/* Filecoin Storage (Optional) */}
+          {parsedIntent && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="mb-8"
+            >
+              <FilecoinUpload
+                onCidChange={setFilecoinCid}
+                label="Store Intent Metadata on Filecoin (Optional)"
+                description="Upload files or store metadata on decentralized Filecoin storage for verifiable proof"
+              />
+            </motion.div>
+          )}
+
           {/* Execution Preview */}
           {parsedIntent && (
             <motion.div
@@ -354,26 +373,35 @@ export default function IntentComposerPage() {
                 <motion.div
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="mt-4 p-4 bg-green-50 dark:bg-green-900/20 border-2 border-green-200 dark:border-green-800 rounded-lg max-w-md mx-auto"
+                  className="mt-4 space-y-4 max-w-md mx-auto"
                 >
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium text-green-600 dark:text-green-400 mb-1">
-                        Intent created successfully!
-                      </p>
-                      <p className="text-xs text-gray-600 dark:text-gray-400 font-mono">
-                        {formatTxHash(transactionHash)}
-                      </p>
+                  <div className="p-4 bg-green-50 dark:bg-green-900/20 border-2 border-green-200 dark:border-green-800 rounded-lg">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium text-green-600 dark:text-green-400 mb-1">
+                          Intent created successfully!
+                        </p>
+                        <p className="text-xs text-gray-600 dark:text-gray-400 font-mono">
+                          {formatTxHash(transactionHash)}
+                        </p>
+                      </div>
+                      <a
+                        href={getExplorerUrl(chainId, transactionHash)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="p-2 rounded-lg bg-green-100 dark:bg-green-900/30 hover:bg-green-200 dark:hover:bg-green-900/50 transition-colors"
+                      >
+                        <ExternalLink className="h-4 w-4 text-green-600 dark:text-green-400" />
+                      </a>
                     </div>
-                    <a
-                      href={getExplorerUrl(chainId, transactionHash)}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="p-2 rounded-lg bg-green-100 dark:bg-green-900/30 hover:bg-green-200 dark:hover:bg-green-900/50 transition-colors"
-                    >
-                      <ExternalLink className="h-4 w-4 text-green-600 dark:text-green-400" />
-                    </a>
                   </div>
+                  {filecoinCid && (
+                    <FilecoinCidDisplay
+                      cid={filecoinCid}
+                      label="Stored on Filecoin"
+                      showVerify={true}
+                    />
+                  )}
                 </motion.div>
               )}
             </motion.div>
