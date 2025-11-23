@@ -59,11 +59,36 @@ export class FilecoinService {
    */
   async pinFile(file: Buffer, filename: string): Promise<string> {
     try {
-      const formData = new FormData();
-      const blob = new Blob([file]);
-      formData.append('file', blob, filename);
+      // Try to use form-data if available, otherwise use multipart/form-data manually
+      let formData: any;
+      let headers: Record<string, any> = {};
 
-      const headers: Record<string, string> = {};
+      try {
+        // Try to use form-data package if installed
+        const FormData = require('form-data');
+        formData = new FormData();
+        formData.append('file', file, {
+          filename,
+          contentType: 'application/octet-stream',
+        });
+        headers = { ...formData.getHeaders() };
+      } catch {
+        // Fallback: create multipart form data manually
+        const boundary = `----WebKitFormBoundary${Date.now()}`;
+        const formDataBuffer = Buffer.concat([
+          Buffer.from(`--${boundary}\r\n`),
+          Buffer.from(`Content-Disposition: form-data; name="file"; filename="${filename}"\r\n`),
+          Buffer.from(`Content-Type: application/octet-stream\r\n\r\n`),
+          file,
+          Buffer.from(`\r\n--${boundary}--\r\n`),
+        ]);
+        formData = formDataBuffer;
+        headers = {
+          'Content-Type': `multipart/form-data; boundary=${boundary}`,
+          'Content-Length': formDataBuffer.length.toString(),
+        };
+      }
+
       if (this.apiKey) {
         headers['Authorization'] = `Bearer ${this.apiKey}`;
       }

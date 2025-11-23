@@ -1,0 +1,6 @@
+contracts/
+backend/
+node_modules/
+*.md
+!frontend/README.md
+
